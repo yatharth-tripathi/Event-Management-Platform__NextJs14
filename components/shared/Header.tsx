@@ -15,7 +15,7 @@ const Header = () => {
             width={38} height={38}
             alt='Eventify logo'
           />
-          <p className='font-bold text-md '>Eventify</p>
+          <p className='font-bold text-md '>Eventify RCOEM</p>
         </Link>
 
         <SignedIn>

@@ -16,7 +16,7 @@ const Footer = () => {
           <p className='font-bold text-md '>Eventify</p>
         </Link>
 
-        <p>2024 Eventify. All Rights Reversed</p>
+        <p>2025 Eventify. All Rights Reversed</p>
       </div>
 
     </footer>

@@ -6,7 +6,6 @@ import Link from 'next/link'
 import React from 'react'
 import { DeleteConfirmation } from './DeleteConfirmation'
 
-
 type CardProps = {
   event: IEvent,
   hasOrderLink?: boolean,
@@ -38,17 +37,20 @@ const EventCard = ({ event, hasOrderLink, hidePrice }: CardProps) => {
         </div>
       )}
 
-      <div
-        className="flex min-h-[230px] flex-col gap-3 p-5 md:gap-4"
-      >
-        {!hidePrice && <div className="flex gap-2">
-          <span className="p-semibold-14 w-min rounded-full bg-green-100 px-4 py-1 text-green-700">
-            {event.isFree ? 'FREE' : `$${event.price}`}
-          </span>
-          <span className="p-semibold-14 w-min rounded-full bg-grey-500/10 px-4 py-1 text-grey-500 line-clamp-1">
-            {event.category.name}
-          </span>
-        </div>}
+      <div className="flex min-h-[230px] flex-col gap-3 p-5 md:gap-4">
+        <div className="flex gap-2">
+          {!hidePrice && (
+            <span className="p-semibold-14 w-min rounded-full bg-green-100 px-4 py-1 text-green-700">
+              {event.isFree ? 'FREE' : `$${event.price}`}
+            </span>
+          )}
+          {event.isVirtual && (
+            <span className="p-semibold-14 w-min rounded-full bg-primary-100 px-4 py-1 text-primary-500 flex items-center gap-1">
+              <Image src="/assets/icons/link.svg" alt="virtual" width={16} height={16} className="filter-primary" />
+              Virtual
+            </span>
+          )}
+        </div>
 
         <p className="p-medium-16 p-medium-18 text-grey-500">
           {formatDateTime(event.date).dateTime}
@@ -65,7 +67,7 @@ const EventCard = ({ event, hasOrderLink, hidePrice }: CardProps) => {
 
           {!hasOrderLink && (
             <Link href={`/orders?eventId=${event._id}`} className="flex gap-2">
-              <p className="text-md text-primary-500">Order Details</p>
+              <p className="text-primary-500">Order Details</p>
               <Image src="/assets/icons/arrow.svg" alt="search" width={10} height={10} />
             </Link>
           )}

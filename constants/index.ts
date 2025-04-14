@@ -23,12 +23,16 @@ export const eventDefaultValues = {
   location: '',
   eventLatitude: '',
   eventLongitude: '',
-  imageUrl: '',
+  imageUrl: '/assets/images/placeholder.png',
   date: new Date(),
   categoryId: '',
   price: '',
   isFree: false,
   url: '',
+  isVirtual: false,
+  meetingUrl: '',
+  meetingId: '',
+  meetingPassword: ''
 }
 
 export const searchEventDefaultValues = {

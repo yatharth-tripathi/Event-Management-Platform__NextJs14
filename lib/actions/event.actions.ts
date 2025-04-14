@@ -7,14 +7,14 @@ import Event from "../database/models/event.model";
 import Category from "@/lib/database/models/category.model";
 import { formatDate, formatDateTime, handleError } from "../utils";
 import { revalidatePath } from "next/cache";
+import { clerkClient } from "@clerk/nextjs";
+import { createUser } from "./user.actions";
 
 import axios from 'axios';
 
 // external api
 const weatherApiUrl = process.env.WEATHER_API_URL;
 const distanceApiUrl = process.env.DISTANCE_API_URL;
-
-
 
 // create Event
 export const createEvent = async ({
@@ -25,25 +25,81 @@ export const createEvent = async ({
     try {
         await connectToDatabase();
 
-        console.log(`event  = ${event} , userId = ${userId} , path = ${path}`)
+        // Add more detailed logging
+        console.log("Creating event with data:", {
+            eventData: event,
+            userId: userId,
+            path: path
+        });
 
-        const organizer = await User.findById(userId);
-        console.log("organizer = ", organizer)
-        if (!organizer) {
-            throw new Error("Organizer not found");
+        // Validate userId
+        if (!userId) {
+            throw new Error("UserId is required");
         }
+
+        // First try to find the user by the Clerk ID
+        let organizer = await User.findOne({ clerkId: userId });
+
+        // If user not found, try to create them
+        if (!organizer) {
+            console.log("User not found in database, attempting to fetch from Clerk...");
+            try {
+                const clerkUser = await clerkClient.users.getUser(userId);
+                
+                // Extract user data with fallbacks for required fields
+                const userData = {
+                    clerkId: userId,
+                    email: clerkUser.emailAddresses[0].emailAddress,
+                    username: clerkUser.username || clerkUser.emailAddresses[0].emailAddress.split('@')[0],
+                    firstName: clerkUser.firstName || 'Anonymous',
+                    lastName: clerkUser.lastName || 'User',
+                    image: clerkUser.imageUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'
+                };
+                
+                // Create user in our database
+                const newUser = await createUser(userData);
+                
+                if (!newUser) {
+                    throw new Error("Failed to create user record");
+                }
+                
+                organizer = newUser;
+                console.log("Created new user:", newUser);
+
+                // Update Clerk metadata
+                await clerkClient.users.updateUserMetadata(userId, {
+                    publicMetadata: {
+                        userId: newUser._id
+                    }
+                });
+            } catch (error) {
+                console.error("Error creating user:", error);
+                throw new Error("Failed to create user in database");
+            }
+        }
+
+        if (!organizer) {
+            console.error(`No organizer found for userId: ${userId}`);
+            throw new Error(`Organizer not found for ID: ${userId}`);
+        }
+
+        // Create event with validated data using organizer's MongoDB _id
         const newEvent = await Event.create({
             ...event,
             category: event.categoryId,
-            organizer: userId,
+            organizer: organizer._id,
         });
 
-        revalidatePath(path)
+        console.log("Successfully created event:", newEvent);
+        revalidatePath(path);
 
-        console.log("Event sent data =  ", newEvent);
         return JSON.parse(JSON.stringify(newEvent));
     } catch (error) {
-        console.log("Error while creating event ");
+        console.error("Detailed error in createEvent:", {
+            error,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined
+        });
         handleError(error);
     }
 };
@@ -57,7 +113,6 @@ const populateEvent = (query: any) => {
         })
         .populate({ path: "category", model: Category, select: "_id name" });
 };
-
 
 // getEvent Details By Id
 export const getEventDetailsById = async (eventId: string) => {
@@ -74,7 +129,6 @@ export const getEventDetailsById = async (eventId: string) => {
         handleError(error);
     }
 };
-
 
 // Get all Events
 export const getAllEvents = async ({
@@ -99,7 +153,6 @@ export const getAllEvents = async ({
             })
             .populate({ path: "category", model: Category, select: "_id name" });
 
-
         // const allEvents = await populateEvent(eventsQuery);
         const eventsCount = await Event.countDocuments(conditions);
 
@@ -116,7 +169,6 @@ export const getAllEvents = async ({
         handleError(error);
     }
 };
-
 
 // DELETE
 export async function deleteEvent({ eventId, path }: DeleteEventParams) {
@@ -135,7 +187,6 @@ export async function deleteEvent({ eventId, path }: DeleteEventParams) {
         handleError(error);
     }
 }
-
 
 // querying events within the next 14 days from the specified date
 async function findEvents(date: Date) {
@@ -197,7 +248,6 @@ async function calculateDistance(userLatitude: string, userLongitude: string, ev
     }
 }
 
-
 // get Events By Search
 export const getEventsBySearch = async ({ searchFormValues }: getEventsBySearchParams) => {
     try {
@@ -251,32 +301,36 @@ export const getEventsBySearch = async ({ searchFormValues }: getEventsBySearchP
     }
 }
 
-
 // update event
 export async function updateEvent({ userId, event, path }: UpdateEventParams) {
     try {
-        await connectToDatabase()
+        await connectToDatabase();
+
+        // Find the organizer by clerkId
+        const organizer = await User.findOne({ clerkId: userId });
+        if (!organizer) {
+            throw new Error('User not found');
+        }
 
         // Ensure user is authorized to update the event
-        const eventToUpdate = await Event.findById(event._id)
-        if (!eventToUpdate || eventToUpdate.organizer.toHexString() !== userId) {
-            throw new Error('Unauthorized or event not found')
+        const eventToUpdate = await Event.findById(event._id);
+        if (!eventToUpdate || eventToUpdate.organizer.toString() !== organizer._id.toString()) {
+            throw new Error('Unauthorized or event not found');
         }
 
         const updatedEvent = await Event.findByIdAndUpdate(
             event._id,
             { ...event, category: event.categoryId },
             { new: true }
-        )
-        revalidatePath(path)
+        );
+        revalidatePath(path);
 
-        return JSON.parse(JSON.stringify(updatedEvent))
+        return JSON.parse(JSON.stringify(updatedEvent));
     } catch (error) {
-        console.log("Error while updating event => ", error)
-        handleError(error)
+        console.log("Error while updating event => ", error);
+        handleError(error);
     }
 }
-
 
 // get Related Events By Category
 export async function getRelatedEventsByCategory({
@@ -306,7 +360,6 @@ export async function getRelatedEventsByCategory({
     }
 }
 
-
 // get Events By User
 export const getEventsByUser = async ({ userId, limit = 6, page }: GetEventsByUserParams) => {
     try {
@@ -319,7 +372,6 @@ export const getEventsByUser = async ({ userId, limit = 6, page }: GetEventsByUs
             .sort({ createdAt: 'desc' })
             .skip(skipAmount)
             .limit(limit)
-
 
         const eventsByUser = await populateEvent(eventsQuery);
         console.log("Your created events => ", eventsByUser)

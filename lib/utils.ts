@@ -96,9 +96,28 @@ export function removeKeysFromQuery({ params, keysToRemove }: RemoveUrlQueryPara
   )
 }
 
-
-
 export const handleError = (error: unknown) => {
-  console.error(error);
-  throw new Error(typeof error === 'string' ? error : JSON.stringify(error));
+  console.error("Error details:", {
+    error,
+    type: typeof error,
+    isError: error instanceof Error,
+    message: error instanceof Error ? error.message : 'Unknown error',
+    stack: error instanceof Error ? error.stack : undefined
+  });
+  
+  let errorMessage = 'An unexpected error occurred';
+
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  } else if (typeof error === 'string') {
+    errorMessage = error;
+  } else if (error && typeof error === 'object') {
+    try {
+      errorMessage = JSON.stringify(error);
+    } catch {
+      errorMessage = 'Failed to serialize error object';
+    }
+  }
+
+  throw new Error(errorMessage);
 }

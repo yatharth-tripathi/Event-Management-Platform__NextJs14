@@ -6,8 +6,8 @@ export interface IEvent extends Document {
     title: string;
     description?: string;
     location: string;
-    eventLatitude:string,
-    eventLongitude:string,
+    eventLatitude: string,
+    eventLongitude: string,
     createdAt: Date;
     imageUrl: string;
     date: Date;
@@ -16,6 +16,10 @@ export interface IEvent extends Document {
     url?: string;
     category: { _id: string, name: string }
     organizer: { _id: string, firstName: string, lastName: string }
+    isVirtual: boolean;
+    meetingUrl?: string;
+    meetingId?: string;
+    meetingPassword?: string;
 }
 
 // schema
@@ -64,11 +68,22 @@ const eventSchema = new mongoose.Schema({
     organizer: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    },
+    isVirtual: {
+        type: Boolean,
+        default: false
+    },
+    meetingUrl: {
+        type: String
+    },
+    meetingId: {
+        type: String
+    },
+    meetingPassword: {
+        type: String
     }
-
 })
-
 
 const Event = mongoose.models?.Event || mongoose.model('Event', eventSchema)
 
-export default Event 
+export default Event

@@ -20,6 +20,7 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@types/react-datepicker": "^4.19.5",
     "@uploadthing/react": "^6.1.0",
+    "@zoom/meetingsdk": "^3.12.0",
     "axios": "^1.6.8",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

@@ -40,12 +40,9 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
     const [files, setFiles] = useState<File[]>([])
     const [startDate, setStartDate] = useState(new Date());
 
-
-
     const initialValues = eventDefaultValues;
     const { startUpload } = useUploadThing('imageUploader')
     const router = useRouter()
-
 
     const form = useForm<z.infer<typeof eventFormSchema>>({
         resolver: zodResolver(eventFormSchema),
@@ -54,6 +51,9 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
             date: new Date(event.date)
         } : initialValues
     })
+
+    // Watch isVirtual field to conditionally show meeting fields
+    const isVirtual = form.watch('isVirtual');
 
     // handle location acesss
     const handleLocationAccess = () => {
@@ -87,6 +87,9 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
             if (!uploadImages) { return }
 
             uploadImageUrl = uploadImages[0].url;
+        } else {
+            // Set a default placeholder image if no image was uploaded
+            uploadImageUrl = '/assets/images/placeholder.png';
         }
 
         // create event
@@ -387,7 +390,102 @@ const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
                     </div>
                 </div>
 
+                {/* Virtual Event Toggle */}
+                <div className='flex flex-col gap-5 md:flex-row'>
+                    <FormField
+                        control={form.control}
+                        name="isVirtual"
+                        render={({ field }) => (
+                            <FormItem className='w-full'>
+                                <FormControl>
+                                    <div className='flex items-center gap-3 rounded-full bg-grey-50 px-4 py-2'>
+                                        <Checkbox
+                                            id={'isVirtual'}
+                                            onCheckedChange={field.onChange}
+                                            checked={field.value}
+                                            className='mr-2 h-5 w-5 border-2 border-primary-500'
+                                        />
+                                        <label htmlFor="isVirtual" className="whitespace-nowrap pr-3 leading-none">
+                                            Virtual Event
+                                        </label>
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
 
+                {/* Virtual Event Details - Only show if isVirtual is true */}
+                {isVirtual && (
+                    <div className='flex flex-col gap-5 md:flex-row'>
+                        <FormField
+                            control={form.control}
+                            name="meetingUrl"
+                            render={({ field }) => (
+                                <FormItem className='w-full'>
+                                    <FormControl>
+                                        <div className='flex-center h-[54px] w-full overflow-hidden rounded-full bg-grey-50 px-4 py-2'>
+                                            <Image
+                                                src='/assets/icons/link.svg'
+                                                width={24}
+                                                height={24}
+                                                alt='meeting'
+                                                className='filter-grey'
+                                            />
+                                            <Input placeholder="Meeting URL (e.g. Zoom link)" {...field} className='input-field' />
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="meetingId"
+                            render={({ field }) => (
+                                <FormItem className='w-full'>
+                                    <FormControl>
+                                        <div className='flex-center h-[54px] w-full overflow-hidden rounded-full bg-grey-50 px-4 py-2'>
+                                            <Image
+                                                src='/assets/icons/file-upload.svg'
+                                                width={24}
+                                                height={24}
+                                                alt='id'
+                                                className='filter-grey'
+                                            />
+                                            <Input placeholder="Meeting ID" {...field} className='input-field' />
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="meetingPassword"
+                            render={({ field }) => (
+                                <FormItem className='w-full'>
+                                    <FormControl>
+                                        <div className='flex-center h-[54px] w-full overflow-hidden rounded-full bg-grey-50 px-4 py-2'>
+                                            <Image
+                                                src='/assets/icons/link.svg'
+                                                width={24}
+                                                height={24}
+                                                alt='password'
+                                                className='filter-grey transform rotate-45'
+                                            />
+                                            <Input placeholder="Meeting Password" type="password" {...field} className='input-field' />
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                )}
 
                 <Button
                     type="submit"

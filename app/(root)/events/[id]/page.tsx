@@ -1,25 +1,39 @@
+'use client';
 
 import Collection from '@/components/shared/Collection';
-import { getEventDetailsById, getRelatedEventsByCategory, } from '@/lib/actions/event.actions'
+import { getEventDetailsById, getRelatedEventsByCategory } from '@/lib/actions/event.actions';
 import { formatDateTime } from '@/lib/utils';
-import { SearchParamProps } from '@/types'
+import { SearchParamProps } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
+import { auth } from '@clerk/nextjs';
+import ZoomMeeting from '@/components/shared/ZoomMeeting';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
-const EventDetails = async ({ params: { id }, searchParams }: SearchParamProps) => {
+const EventDetails = ({ params: { id }, searchParams }: SearchParamProps) => {
+    const [showZoomMeeting, setShowZoomMeeting] = useState(false);
+    const { userId } = auth();
+    const [event, setEvent] = useState(null);
+    const [relatedEvents, setRelatedEvents] = useState(null);
 
-    // get event data by ID
-    const event = await getEventDetailsById(id);
-    console.log("Event details => ", event)
+    useEffect(() => {
+        const fetchData = async () => {
+            const eventData = await getEventDetailsById(id);
+            setEvent(eventData);
+            
+            const relatedEventsData = await getRelatedEventsByCategory({
+                categoryId: eventData.category._id,
+                eventId: eventData._id,
+                page: searchParams.page as string,
+            });
+            setRelatedEvents(relatedEventsData);
+        };
+        
+        fetchData();
+    }, [id, searchParams.page]);
 
-    const relatedEvents = await getRelatedEventsByCategory({
-        categoryId: event.category._id,
-        eventId: event._id,
-        page: searchParams.page as string,
-    })
-    console.log(`related Events for category - ${event.category.name} =>  ${relatedEvents}`)
-
-
+    if (!event) return <div>Loading...</div>;
 
     return (
         <>
@@ -54,7 +68,6 @@ const EventDetails = async ({ params: { id }, searchParams }: SearchParamProps) 
                             </div>
                         </div>
 
-
                         <div className="flex flex-col gap-5">
                             <div className='flex gap-2 md:gap-3'>
                                 <Image src="/assets/icons/calendar.svg" alt="calendar" width={32} height={32} />
@@ -74,10 +87,48 @@ const EventDetails = async ({ params: { id }, searchParams }: SearchParamProps) 
                         <div className="flex flex-col gap-2">
                             <p className="p-bold-20 text-grey-600">What You'll Learn:</p>
                             <p className="p-medium-16 lg:p-regular-18">{event.description}</p>
-                            <Link href={event.url} className="p-medium-16 lg:p-regular-18 truncate text-primary-500 underline" target='_blank'
-                            >{event.url}
+                            <Link href={event.url} className="p-medium-16 lg:p-regular-18 truncate text-primary-500 underline" target='_blank'>
+                                {event.url}
                             </Link>
                         </div>
+
+                        {/* Virtual Event Details */}
+                        {event.isVirtual && (
+                            <div className="flex flex-col gap-5 rounded-xl bg-white/80 backdrop-blur-sm p-5 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <Image src="/assets/icons/link.svg" alt="virtual" width={32} height={32} />
+                                    <h3 className="p-bold-20">Virtual Event Details</h3>
+                                </div>
+                                <div className="flex flex-col gap-3 pl-11">
+                                    {!showZoomMeeting ? (
+                                        <Button 
+                                            onClick={() => setShowZoomMeeting(true)}
+                                            className="w-full md:w-auto"
+                                        >
+                                            Join Meeting Now
+                                        </Button>
+                                    ) : (
+                                        <div className="w-full aspect-video">
+                                            <ZoomMeeting 
+                                                meetingNumber={event.meetingId}
+                                                userName={`${event.organizer.firstName} ${event.organizer.lastName}`}
+                                                password={event.meetingPassword}
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <Image src="/assets/icons/file-upload.svg" alt="id" width={20} height={20} />
+                                        <p className="p-medium-16">Meeting ID: {event.meetingId}</p>
+                                    </div>
+                                    {event.meetingPassword && (
+                                        <div className="flex items-center gap-2">
+                                            <Image src="/assets/icons/link.svg" alt="password" width={20} height={20} className="transform rotate-45" />
+                                            <p className="p-medium-16">Password: {event.meetingPassword}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </section>
@@ -85,21 +136,20 @@ const EventDetails = async ({ params: { id }, searchParams }: SearchParamProps) 
             {/* EVENTS with the same category */}
             <section className="wrapper my-8 flex flex-col gap-8 md:gap-12">
                 <h2 className="h2-bold">Related Events</h2>
-
-                <Collection
-                    data={relatedEvents?.data}
-                    emptyTitle="No Events Found"
-                    emptyStateSubText="Come back later"
-                    collectionType="All_Events"
-                    limit={3}
-                    page={searchParams.page as string}
-                    totalPages={relatedEvents?.totalPages}
-                />
-
-
+                {relatedEvents && (
+                    <Collection
+                        data={relatedEvents?.data}
+                        emptyTitle="No Events Found"
+                        emptyStateSubText="Come back later"
+                        collectionType="All_Events"
+                        limit={3}
+                        page={searchParams.page as string}
+                        totalPages={relatedEvents?.totalPages}
+                    />
+                )}
             </section>
         </>
-    )
-}
+    );
+};
 
-export default EventDetails
+export default EventDetails;
